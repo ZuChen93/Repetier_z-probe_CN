@@ -2,12 +2,11 @@
 >There have been several bugs in the auto leveling and distortion correction code. This documentation assumes you have version 0.92.8 from 03/01/2016 or later installed!
 ## 工作原理
 
-Before you start defining your auto leveling you should know what you are doing and what you can change and where you would change what error.
+在实际操作前请你搞清楚你所做的每一步，了解都可以修改哪些配置，知道出现问题时需要调整那个参数。
 
-最重要的部件就是Z轴探针（Z probe，以下简称Z探针）。这个装置类似开关，在受到挤压时能够向IO口反馈一个信号。并且它与挤出头安装在一起，会在喷嘴触碰到热床前被优先触发。当它触发时就可以获得喷嘴距离热床的高度，我们可以用这种方法来测量热床在Z轴方向上的摆放状态。
+在机器调试过程中，最重要的部件就是Z轴探针（Z probe，以下简称Z探针）。这个装置类似开关，在受到挤压时能够向IO口反馈一个信号。并且它与挤出头安装在一起，会在喷嘴触碰到热床前被优先触发。当它触发时就可以获得喷嘴距离热床的高度，我们可以用这种方法来测量热床在Z轴方向上的摆放状态。
 
-
-The first thing we normally do is level out the bed. To do so we measure at least 3 points and compute the average plane trough this. The difference to the theoretically constant z show us how much rotation is required to be everywhere on same height. This can be done through a software rotation (if z moves have no backlash) or through a mechanical movement of the bed sides (through motorized modification of 2 from 3 fix points). This works quite well, but neglects some errors:
+那么我们通常首先要做的是对热床进行调平操作。我们至少需要测量三个点，通过计算出一个平均值来得到热床水平面的情况。 The difference to the theoretically constant z show us how much rotation is required to be everywhere on same height. This can be done through a software rotation (if z moves have no backlash) or through a mechanical movement of the bed sides (through motorized modification of 2 from 3 fix points). This works quite well, but neglects some errors:
 
 - 大多数热床都不会完全平整，尤其在加热的时候它会产生轻微形变。
 - 测量并非100%准确
@@ -35,7 +34,7 @@ Well, first thing you must know is that a conventional z min end stop is not wor
 
 That way you can have a z-probe, where you do not need to consider on how to fix and activate it. 
 
-要想使用Z-Probe功能，需要先在configuration.h文件中进行配置。下面是配置在文件中所在的位置:
+要想使用Z-Probe功能，需要先在configuration.h文件中进行配置。以下是配置文件中的相关参数:
 
 ```c++
 /* Z-Probing */
