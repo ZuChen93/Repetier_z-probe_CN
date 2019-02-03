@@ -1,4 +1,6 @@
 # Z-Probing
+>原文：https://www.repetier.com/documentation/repetier-firmware/z-probing/
+> 
 >There have been several bugs in the auto leveling and distortion correction code. This documentation assumes you have version 0.92.8 from 03/01/2016 or later installed!
 ## 工作原理
 
@@ -25,7 +27,7 @@ Well, first thing you must know is that a conventional z min end stop is not wor
 
 ## 固件配置
 ### **Z-Probe**（Z探针）
- 
+
 从0.90版本开始Repetier固件开始支持自动调平（auto leveling）。如果使用这个功能需要一个Z探针装置，以自动或半自动的方式测距。
 
 - 自动方式是指：Z探针与挤出头一起移动，不需要认为干预调平过程。
@@ -105,60 +107,60 @@ For more precise measurement you can repeat each point Z_PROBE_REPETITIONS times
 
 **Z_PROBE_HEIGHT**是最重要的参数，你需要在EEPROM中将它调整到正确的高度。这个参数定义了探针在触发那一刻，挤出头底部距离热床的高度。*大多数情况下这是个正数。但是如果Z探头使用的是压力传感器或是一个通过挤出头收到压力来触发的开关，则为0或一个小的负数*。测量这个距离的方法有很多，下面介绍一个最能准确测量高度的方法：
 
-1- 找一个表面平坦并且知道准确高度的金属块。金属块的高度就是我们的参照物高度*ref_height*。
+1- 发送命令`G28`将打印机归位，查看固件中已有的Z_PROBE_HEIGHT值，记作*ZH<sub>old</sub>*
 
-2- 讲Z探针移动到没有被触发的高度，发送命令`G30 P0`，将回显的Z轴高度记作z<sub>0</sub>。
+2- 找一个表面平坦并且知道准确高度的金属块作为参照物。将金属块的高度记作*ref_height*。
+
+3- 将Z探针移动到没有被触发的高度，发送命令`G30 P0`，将回显的Z轴高度记作*Z<sub>0</sub>*。
 
 4- 加热挤出头并将喷嘴清理干净，保持高温状态，以避免喷嘴残留的硬质打印材料会对测量结果产生影响。
 
-5- 发送命令`M114`，记录下回显的Z轴高度，记为*z<sub>old</sub>*。
+5- 发送命令`M114`，记录下回显的Z轴高度，记为*Z<sub>old</sub>*。
 
-6- 通过软件调整Z轴高度直至让挤出头底部抵住金属块。最佳的状态是，当有一丝间隙的时候就可以轻易移动金属块。即便太低了，挤出头也会磕在金属块上而不会损坏热床。而且这个方法比用一页纸垫在热床上测试距离准确多了。一旦你找准了合适的位置，再次发送命令`M114`，记下高度*z<sub>new</sub>*。
+6- 通过软件调整Z轴高度直至让挤出头底部抵住金属块。最佳的状态是，当有一丝间隙的时候就可以轻易移动金属块。即便太低了，挤出头也会磕在金属块上而不会损坏热床。而且这个方法比用一页纸垫在热床上测试距离准确多了。一旦你找准了合适的位置，再次发送命令`M114`，记下高度*Z<sub>new</sub>*。
 
-So what we now have is starting height as firmware would assume it from first probe Z0 using our initial Z_PROBE_HEIGHT (ZHold). We also know that we needed to go up Znew-Zold to reach ref_height. From this we can compute the exact real value required from Z_PROBE_HEIGHT (ZHnew):
+7- 至此我们就可以计算出准确的Z_PROBE_HEIGHT值（*ZH<sub>new</sub>*）：
+    *ZH<sub>new</sub> = ZH<sub>old</sub> - Z<sub>0</sub> - Z<sub>new</sub> + Z<sub>old</sub> + ref_height*
 
-ZHnew = ZHold - Z0 - Znew + Zold + ref_height
-Enter this value in eeprom and your measurements will be as precise as you can get it.
+将这个结果保存至EEPROM中，这将是你可以能获得的最精确的测量值。
 
-Hints: This works fine if you have always the same bed and bed coating. Inductive sensors measure distance to the metal bed part, so it would be possible to correct different bed coatings that you can but on it. The current thickness is stored in Z_PROBE_Z_OFFSET (bed coating in eeprom) and should be 0 for most printers.
+**提示**：如果你的热床和平台覆盖物一直不更换的话，测量数值一直有效。对于感应传感器的Z探针，它只会测量到金属热床的距离，这样它就可以纠正不同的平台覆盖物的厚度了。当前的覆盖物厚度存储在EEPROM中的Z_PROBE_Z_OFFSET参数里，对于大多数打印机这个值是0。
 
-Autoleveling
-Now that we have a working z-probe, we enable auto leveling. For that you need to add “#define FEATURE_AUTOLEVEL 1”.
-Then we define how we want the auto leveling to work. First we define how to measure the plane rotation. Currentyl 3 methods can be defined and set with BED_LEVELING_METHOD.
+## 自动调平
+### 1、在固件中启用自调平功能
+现在我们就有了工作正常的Z探针了，要想开启这个功能，在固件中的相应位置做如下定义`#define FEATURE_AUTOLEVEL 1`。
 
-BED_LEVELING_METHOD 0
+### 2、定义自动调平的策略
+首先我们定义如何测量平面旋转（plane rotation）。目前固件里内置了3种调平策略，可以通过`BED_LEVELING_METHOD`参数设定。
 
-This method measures at the 3 probe points and creates a plane through these points. If you have
-a really planar bed this gives the optimum result. The 3 points must not be in one line and have
-a long distance to increase numerical stability. Delta printers should have them as close to the columns as possible.
+- BED_LEVELING_METHOD 0：
 
-BED_LEVELING_METHOD 1
+  ![img](https://www.repetier.com/w/wp-content/uploads/2016/01/bed-leveling-method-0.png) 
 
-This measures a grid. Probe point 1 is the origin and points 2 and 3 span a grid. We measure
-BED_LEVELING_GRID_SIZE points in each direction and compute a regression plane through all
-points. This gives a good overall plane if you have small bumps measuring inaccuracies.
+  此策略会通过探测3个点创建一个平面。如果你可以确保热床表面非常平整，用这个策略会获得最佳效果。这三个点**必须**不能处在同一直线上，而且需要相距很远以确保数值稳定性（numerical stability）。对于Delta型打印机，这三点的坐标应该尽可能的靠近三根立柱。
 
-BED_LEVELING_METHOD 2
+- BED_LEVELING_METHOD 1
 
-Bending correcting 4 point measurement. This is for cantilevered beds that have the rotation axis
-not at the side but inside the bed. Here we can assume no bending on the axis and a symmetric
-bending to both sides of the axis. So probe points 2 and 3 build the symmetric axis and
-point 1 is mirrored to 1m across the axis. Using the symmetry we then remove the bending
-from 1 and use that as plane.
+    ![img](https://www.repetier.com/w/wp-content/uploads/2016/01/bed-leveling-method-1.png)
 
-Next you should decide on the correction method. This correction is defined by BED_CORRECTION_METHOD and allows the following values:
+    此策略会探测一张网格。如图所示以P1为原点，通过P2、P3两点扩展成一组网格点。程序会分别在每一个边探测`BED_LEVELING_GRID_SIZE`个点，最后计算出一张回归平面。如果热床局部有小的突起，用此策略可以获得一个整体不错的平面。 points in each direction and compute a regression plane through all points. This gives a good overall plane if you have small bumps measuring inaccuracies.
 
-BED_CORRECTION_METHOD 0
-Use a rotation matrix. This will make z axis go up/down while moving in x/y direction to compensate
-the tilt. For multiple extruders make sure the height match the tilt of the bed or one will scratch.
+- BED_LEVELING_METHOD 2
 
-BED_CORRECTION_METHOD 1
-Motorized correction. This method needs a bed that is fixed on 3 points from which 2 have a motor
-to change the height. The positions are defined by
-BED_MOTOR_1_X, BED_MOTOR_1_Y, BED_MOTOR_2_X, BED_MOTOR_2_Y, BED_MOTOR_3_X, BED_MOTOR_3_Y
-Motor 2 and 3 are the one driven by motor driver 0 and 1. These can be extra motors like Felix Pro 1
-uses them or a system with 3 z axis where motors can be controlled individually like the Sparkcube
-does.
+    ![img](https://www.repetier.com/w/wp-content/uploads/2016/01/bed-leveling-method-2.png)
+
+    4点测量法以修正平台弯曲。此策略适用于悬臂式平台（cantilevered bed，译注：见下图，Google搜到的不确定……）![Image result for 3d printing cantilevered beds](http://mark.rehorst.com/misc/CubeX_Duo/CubeX%20Duo%20Z%20axis%20drawing.png) 
+
+    此类平台的旋转轴不在平台边缘而是在平台内部。这里假设一种平台中轴线没有弯曲，而中轴线的两侧呈对称性弯曲的情况。如图，P2和P3点连线构成一条对称轴，P1和P1<sub>m</sub>点关于直线P2P3轴对称。通过这种对称性，我们就可以消除从P1点产生的弯曲并形成一个平面。
+
+下面还需要定义一个修正方法。通过参数'BED_CORRECTION_METHOD'设置：
+
+- BED_CORRECTION_METHOD 0
+  使用旋转矩阵（rotation matrix）。挤出头在x/y轴平面运动的时候，z轴坐标会根据矩阵中相应位置的数据进行补偿。对于多挤出头，请确保它们的高度与打印平台的倾斜度相匹配，否则会发生剐蹭。
+
+- BED_CORRECTION_METHOD 1
+  机械化修正。这个方法需要平台由3点固定，其中2点可以通过电机改变高度。这三个固定点的坐标由参数`BED_MOTOR_1_X, BED_MOTOR_1_Y, BED_MOTOR_2_X, BED_MOTOR_2_Y, BED_MOTOR_3_X, BED_MOTOR_3_Y`决定。其中电机2和3分别由驱动模块0和1驱动。These can be extra motors like Felix Pro 1 uses them or a system with 3 z axis where motors can be controlled individually like the Sparkcube
+  does.
 
 You need also to set the following parameter:
 
@@ -201,6 +203,8 @@ Nonlinear printers like deltas will home again to get right positioning.
 Older firmware versions (< 0.92.8) had S1 for measuring and update z length. This is now done always for z max homing as long as S is not 0.
 
 ## Delta型打印机
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/L9URtv2LqKc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 > 自0.92版本以后，触发畸变校正（distorsion correction）功能的命令是`G33`（取代原来的G29）。
 
@@ -250,4 +254,4 @@ M323 S1 ;       临时启用校正
 M323 S1 P1 ;    永久启用校正
 ```
 ## 手动调整热床
-最后，还有一种替代方法是热床进行调平，这样就能保证做x-y的移动。这需要较少的计算，也不像自动调平那样磨损z轴（这相当于机械自动调平）。唯一的缺点是，要把它调整好的需要做更多的工作。最简单的方法是只用3颗螺丝固定热床，并设置自调平的3个测量点靠近热床的3个固定点。发送`G29`，固件程序将测量并输出3个点的高度。然后你在手动调整热床某一固定点的高度以确保自调平测量的高度一致，并反复重直至满意位置。如果打印机有z-max限位开关，发送`G29 S2`可以测量打印区域的高度，并将其永久存储在EEPROM中(S1将只测量高度)。
+最后，还有一种替代方法是热床进行调平，这样就能保证做x-y的移动。这需要较少的计算，也不像自动调平那样磨损z轴（这相当于机械自动调平）。唯一的缺点是，要把它调整好的需要做更多的工作。最简单的方法是只用3颗螺丝固定热床，并设置自调平的3个测量点靠近热床的3个固定点。发送`G29`，固件程序将测量并输出3个点的高度。然后你在手动调整热床某一固定点的高度以确保自调平测量的高度一致，并反复重直至满意位置。如果打印机有z-max限位开关，发送`G29 S2`可以测量打印区域的高度，并将其永久存储在EEPROM中（`G29 S1`将只测量高度不储存）。
