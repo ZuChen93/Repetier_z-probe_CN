@@ -1,32 +1,34 @@
 # Z-Probing
 >原文：https://www.repetier.com/documentation/repetier-firmware/z-probing/
-> 
->There have been several bugs in the auto leveling and distortion correction code. This documentation assumes you have version 0.92.8 from 03/01/2016 or later installed!
+>
+>旧版固件的自动调平和畸变校正代码存在问题，请使用版本0.92.8（2016年3月1日）之后的固件。
+[TOC]
+
 ## 工作原理
 
-在实际操作前请你搞清楚你所做的每一步，了解都可以修改哪些配置，知道出现问题时需要调整那个参数。
+在实际操作前请弄懂你所做的每一步，了解哪些配置可以修改，出现问题时需要调整哪个参数。
 
-在机器调试过程中，最重要的部件就是Z轴探针（Z probe，以下简称Z探针）。这个装置类似开关，在受到挤压时能够向IO口反馈一个信号。并且它与挤出头安装在一起，会在喷嘴触碰到热床前被优先触发。当它触发时就可以获得喷嘴距离热床的高度，我们可以用这种方法来测量热床在Z轴方向上的摆放状态。
+在机器调试过程中，最重要的部件就是Z轴探针（Z probe，以下简称Z探针）。这个装置类似限位开关，它在受到挤压时能够向IO口反馈一个信号。通常Z探针会与挤出头安装在一起，并会在喷嘴触碰到热床前被优先触发。当它触发时就可以计算出喷嘴距离热床的高度，我们可以用这种方法来测量热床在Z轴方向上的摆放状态。
 
-那么我们通常首先要做的是对热床进行调平操作。我们至少需要测量三个点，通过计算出一个平均值来得到热床水平面的情况。 The difference to the theoretically constant z show us how much rotation is required to be everywhere on same height. This can be done through a software rotation (if z moves have no backlash) or through a mechanical movement of the bed sides (through motorized modification of 2 from 3 fix points). This works quite well, but neglects some errors:
+那么我们通常先要做的是对热床进行调平。我们至少需要测量三个点的坐标，通过计算出一个平均值来获得热床表面的情况。与高度 *Z* 的差值显示了要达到同一高度的任意一处，电机需要转动多少次。这可以通过程序作出补偿（如果Z轴没有设置侧隙补偿*backlash*）或者手动机械调整热床的调平螺丝来修正。这个方法可行，但是忽视了一些问题：
 
-- 大多数热床都不会完全平整，尤其在加热的时候它会产生轻微形变。
+- 大多数热床都不会完全平整，尤其在加热的时候它会产生轻微形变
 - 测量并非100%准确
-- 测量过程中可能会压弯你的打印平台
+- 测量过程中可能会压弯热床
 
-If that is a problem with your printer, you would measure a n x n grid to get a better approximation of the bed.
+如果你的打印机存在以上问题，就需要测量一组n x n的网格点来获得热床更好的近似值。
 
-With z probes that require some considerable amount of force it may bend the bed depending on the position. For this we have a bending correction, that corrects measured values by bending. This is a bit limited especially if bending is not a linear function of x and y. Then you must limit measurements to 3 points for which you set the bending correction.
+有些Z探针需要受到很大的力才能触发，这可能会使热床当前测量位置的区域发生形变。对于此种情况，固件中有一个弯曲矫正功能（*bending correction*）可以对发生的弯曲作出补偿。但是这种方法有一定的局限性：如果弯曲不是关于x和y的线性函数关系，必须使用三点测量法调平。
 
-Even with an average plane for rotation, you still have bumps. With some luck the average bump is negligible and you can ignore it. In more extreme cases, especially with increasing bed sizes, it would be great to be able to follow the curvature of the bed for the first layers and remove that correction to zero with increasing z. That would help a big deal with correct bonding. This feature is called distortion correction and since 0.92.8 it is available for all printer types. It works by measuring a distortion map and storing it in eeprom (ideally) or ram (then you need to measure every time). Also since 0.92.8 we assume that distortion never changes, since it is a bed property. So recomputing the rotation will NOT reset the distortion map.
+即使对热床做了调平，你仍然会遇到平台上有小突起的情况。如果幸运的话突起微乎其微，那么你可以忽略。但是在更极端的场景下，尤其是扩大了打印平台的尺寸后，可以根据热床的曲率，通过提升Z轴坐标做出补偿来保证在打印第一层的时的准确性。这对打印材料与平台的贴合有十分大的帮助。这个功能叫做畸变校正（*distorsion correction*），Repetier固件从0.92.8版本以后对全类型打印机支持此功能。这个功能的原理是通过测量生成一个畸变凹凸图*distortion map*，并将数据存储在EEPROM（推荐）或者RAM（每次复位后都需要重新测量）。并且从0.92.8版本开始，程序会默认畸变参数恒定不变，因为这是热床的固有属性。所以调平**不会**重置畸变凹凸图的参数。
 
 ## Z探针 & Z轴归位
-The best solution for printers having a z-probe is to home to z max. This allows rehoming during a print, e.g. if after a pause the motors were turned off and you might not trust your current position. Also you have no problems that a tilted bed hits the nozzle/probe while homing. You would simply home z first then xy and would never hit anything. Simple and save. The only drawback is that you need to home t z max and for printing go down again. This may take 30 seconds and some people thing that is not good to wait 30s also many prints take hours. So they are very sure they want to home to z min.
+如果打印机有Z探针，最好设置机器的归零方向是Z-MAX，这样可以使打印机在打印前将位置重新归位。因为如果步进电机在暂停后关闭了，当前位置的坐标就不可信了；而且也避免了发生喷嘴/探针在归位时与翘起的热床发生磕碰。你需要先归位Z轴再归位XY轴，这样就保证不会发生磕碰。简单高效。唯一的缺点是每次打印前，机器为了归位不得不先移动到Z-MAX，再向下移动进行打印。这个归位过程可能会需要30秒的时间，即便打印过程长达数小时，有些人也不愿意等这30秒时间，所以他们就坚持把归位方向设置为Z-MIN。
 
-Well, first thing you must know is that a conventional z min end stop is not working here. Lets take some unlikely extremes to picture that. Lets say bed is rotated so that the left edge is 1cm higher the the right front and the 2 back edges are even 1cm higher. A conventional end stop is the lowest point and should prevent any moves going lower, so in this example it must match the right front edge. If we home Z first we will crash the nozzle into bed at any point except the right front edge. You see that is not a solution, so what you will need is a z sensor that is mounted on your extruder. To tell firmware we want to use z-probe also as z min end stop is by setting both to the same pin! That way we can measure everywhere the height to bed. But that is useless if we do not know where we are measuring, so we have to home x and y first. Ok, no problem if we are at a good height. Why? Well assuming our rotated bed again measuring at low z might cause extruder/probe to collide with the bed. So in version 1.0 newer then 14. January 2017 you can set homing to raise z before homing. Reason is simply to cause no collisions. Sounds simple, but what if are by accident near the top. If you have a z max end stop as well, that would catch the up move simply by triggering and you are safe. If you have no z max end stop just make sure never to move that much up. Ok, point taken, next issue. Now that xy homing is working safely we want to home z. So we have to think about a position where we can home z. Normally this is done at xy home position. But the z probe is in most cases not where the nozzle is plus it must be over the bed to do a valid measurement. So firmware will activate z probe adding offset and measure. SO if you are lucky it works since you home to min x and probe is on left side of nozzle. If not we HOME_ORDER_XYTZ which allows us to set a min. temperature for nozzle (only important if extruder is part of z probe) and more important we can set a probing coordinate. So we move first to that coordinate and then measure the height with offset. That way we can overcome the last problem with z min homing.
+然而，你不得不得接受一个现实：传统的Z-MIX限位开关在这个场景下是完全没有作用的。让我们用一个不太可能的极端情况来说明：假如热床左边缘比右前方高出1厘米，后半部分甚至高出了2厘米。传统的限位开关安装在机轴底部，以防止任何再往下的移动，在当前情况中，热床右前方区域是整个坐标系统的最低点，这样限位开关就应该探测右前方边缘位置。这时如果执行Z-MIN归位操作，那么任何向除了右前方区域的移动都会使喷头撞上热床。这并不是我们想要看到的情况，要想避免发生这个问题就要有一个捆绑在挤出头上的Z探针，并将信号输出连接到主板上的Z-MIN限位开关接口上，将其视作Z-MIN限位开关。这样就可以探测热床上每一点的高度了。但是探测高度时如果没有当前的位置信息是没有用的，所以我们应该先进行X、Y轴归位。好了，到这里如果高度合适就没有问题了。为什么？假设热床再次测量Z轴更低的高度，又可能会导致挤出机或者探针与热床相撞。所以Repetier从1.0版本（2017年1月14日）之后，你可以设置机器在Z轴归位前先将喷头抬升。原因很简单就是为了避免发生碰撞。听起来很简单，但是喷头会一直向机器顶部移动不停下来，于是又发生了碰撞。这时如果我们在机器顶部安装了Z-MAX限位开关就可以避免这一情况了。如果没有Z-MAX限位开关，要确保喷头在机器允许的高度范围内移动。好了，关键点来了，下一个问题。现在X、Y轴归位工作正常，我们开始做Z轴归位。这时我们就要考虑归位操作要向哪个位置移动。的方向So we have to think about a position where we can home z. Normally this is done at xy home position. But the z probe is in most cases not where the nozzle is plus it must be over the bed to do a valid measurement. So firmware will activate z probe adding offset and measure. SO if you are lucky it works since you home to min x and probe is on left side of nozzle. If not we HOME_ORDER_XYTZ which allows us to set a min. temperature for nozzle (only important if extruder is part of z probe) and more important we can set a probing coordinate. So we move first to that coordinate and then measure the height with offset. That way we can overcome the last problem with z min homing.
 
 ## 固件配置
-### **Z-Probe**（Z探针）
+### Z-Probe（Z探针）
 
 从0.90版本开始Repetier固件开始支持自动调平（auto leveling）。如果使用这个功能需要一个Z探针装置，以自动或半自动的方式测距。
 
@@ -233,17 +235,17 @@ M322 S3 ;   永久清空自动调平参数矩阵
 ## 畸变校正（*distorsion correction*）
 幸运的话你已经完成了机器的调试。然而如果你的热床不是100%平整，或者delta型打印机的几何移动不是完全正确，那么打印机热床和挤出头之间的高度仍然是不均衡的。Repetier固件从0.92.8版本开始，可以通过畸变校正功能来修正这个问题。
 
-它的原理是：通过测量n x n的网格上的每个点，将理论和实际高度差记录成一张凹凸贴图（bump map)，并将结果存储在EEPROM上（或者RAM上，但是机器重启后会失效）。这个功能用`G33`触发。程序会根据你预先在固件中定义好的网格点进行测量。**在使用这个功能前要确保Z轴d打印高度已经设置正确**。畸变校正后，程序将自动开启畸变校正补偿。下次打印时，挤出头在移动中就会按照各个位置的凹凸情况作出相应补偿。补偿值将随着打印高度的增加越来越小，直至停止补偿。
+它的原理是：通过测量n x n的网格上的每个点，将理论和实际高度差记录成一张凹凸图（bump map)，并将结果存储在EEPROM上（或者RAM上，但是机器重启后会失效）。这个功能用`G33`触发。程序会根据你预先在固件中定义好的网格点进行测量。**在使用这个功能前要确保Z轴d打印高度已经设置正确**。畸变校正后，程序将自动开启畸变校正补偿。下次打印时，挤出头在移动中就会按照各个位置的凹凸情况作出相应补偿。补偿值将随着打印高度的增加越来越小，直至停止补偿。
 
-**注意**：畸变校正使用32位整型变量。如果Z轴变化值乘以网格点距离值的结果超过了2<sup>31</sup>，会导致内存溢出，进而计算结果会出现问题。通常大部分打印机不会遇到这个问题，但是在一些高精度打印机上如果Z轴变化值过大就会发生溢出！
+**注意**：畸变校正的相关参数使用32位整型变量。如果Z轴变化值乘以网格点距离值的结果超过了2<sup>31</sup>，会导致内存溢出，进而计算结果会出现问题。通常大部分打印机不会遇到这个问题，但是在一些高精度打印机上如果Z轴变化值过大就会发生溢出！
 
 G33命令有三种用法，分别是：
 
-- `G33 L0`（输出凹凸贴图）：使用此命令你可以得到EEPROM中保存的全部突起补偿值。这些值会在相应的位置对Z轴坐标进行补偿，点与点之间会进行插值处理。
+- `G33 L0`（输出凹凸图）：使用此命令你可以得到EEPROM中保存的全部突起补偿值。这些值会在相应的位置对Z轴坐标进行补偿，点与点之间会进行插值处理。
 
-- `G33 X<xpos> Y<ypos> Z<newCorrection>`（调整凹凸贴图）：在最靠近输入坐标的位置设定一个新的补偿值。所以这个命令中的X、Y轴坐标不需要完全遵照G33 L0结果中的坐标输入。
+- `G33 X<xpos> Y<ypos> Z<newCorrection>`（调整凹凸图）：在最靠近输入坐标的位置设定一个新的补偿值。所以这个命令中的X、Y轴坐标不需要完全遵照G33 L0结果中的坐标输入。
 
-- `G33 R0`（重置凹凸贴图）：将所有补偿值重置为0。
+- `G33 R0`（重置凹凸图）：将所有补偿值重置为0。
 
 ### 开启/禁用畸变校正
 ```
