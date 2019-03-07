@@ -25,7 +25,11 @@
 ## Z探针 & Z轴归位
 如果打印机有Z探针，最好设置机器的归零方向是Z-MAX，这样可以使打印机在打印前将位置重新归位。因为如果步进电机在暂停后关闭了，当前位置的坐标就不可信了；而且也避免了发生喷嘴/探针在归位时与翘起的热床发生磕碰。你需要先归位Z轴再归位XY轴，这样就保证不会发生磕碰。简单高效。唯一的缺点是每次打印前，机器为了归位不得不先移动到Z-MAX，再向下移动进行打印。这个归位过程可能会需要30秒的时间，即便打印过程长达数小时，有些人也不愿意等这30秒时间，所以他们就坚持把归位方向设置为Z-MIN。
 
-然而，你不得不得接受一个现实：传统的Z-MIX限位开关在这个场景下是完全没有作用的。让我们用一个不太可能的极端情况来说明：假如热床左边缘比右前方高出1厘米，后半部分甚至高出了2厘米。传统的限位开关安装在机轴底部，以防止任何再往下的移动，在当前情况中，热床右前方区域是整个坐标系统的最低点，这样限位开关就应该探测右前方边缘位置。这时如果执行Z-MIN归位操作，那么任何向除了右前方区域的移动都会使喷头撞上热床。这并不是我们想要看到的情况，要想避免发生这个问题就要有一个捆绑在挤出头上的Z探针，并将信号输出连接到主板上的Z-MIN限位开关接口上，将其视作Z-MIN限位开关。这样就可以探测热床上每一点的高度了。但是探测高度时如果没有当前的位置信息是没有用的，所以我们应该先进行X、Y轴归位。好了，到这里如果高度合适就没有问题了。为什么？假设热床再次测量Z轴更低的高度，又可能会导致挤出机或者探针与热床相撞。所以Repetier从1.0版本（2017年1月14日）之后，你可以设置机器在Z轴归位前先将喷头抬升。原因很简单就是为了避免发生碰撞。听起来很简单，但是喷头会一直向机器顶部移动不停下来，于是又发生了碰撞。这时如果我们在机器顶部安装了Z-MAX限位开关就可以避免这一情况了。如果没有Z-MAX限位开关，要确保喷头在机器允许的高度范围内移动。好了，关键点来了，下一个问题。现在X、Y轴归位工作正常，我们开始做Z轴归位。这时我们就要考虑归位操作要向哪个位置移动。的方向So we have to think about a position where we can home z. Normally this is done at xy home position. But the z probe is in most cases not where the nozzle is plus it must be over the bed to do a valid measurement. So firmware will activate z probe adding offset and measure. SO if you are lucky it works since you home to min x and probe is on left side of nozzle. If not we HOME_ORDER_XYTZ which allows us to set a min. temperature for nozzle (only important if extruder is part of z probe) and more important we can set a probing coordinate. So we move first to that coordinate and then measure the height with offset. That way we can overcome the last problem with z min homing.
+然而，你不得不得接受一个现实：传统的Z-MIX限位开关在这个场景下是完全没有作用的。让我们用一个不太可能的极端情况来说明：假如热床左边缘比右前方高出1厘米，后半部分甚至高出了2厘米。传统的限位开关安装在机轴底部，以防止任何再往下的移动，在当前情况中，热床右前方区域是整个坐标系统的最低点，这样限位开关就应该探测右前方边缘位置。这时如果执行Z-MIN归位操作，那么任何向除了右前方区域的移动都会使喷头撞上热床。这并不是我们想要看到的情况，要想避免发生这个问题就要有一个捆绑在挤出头上的Z探针，并将信号输出连接到主板上的Z-MIN限位开关接口上，将其视作Z-MIN限位开关。这样就可以探测热床上每一点的高度了。但是探测高度时如果没有当前的位置信息是没有用的，所以我们应该先进行X、Y轴归位。好了，到这里如果高度合适就没有问题了。为什么？假设热床再次测量Z轴更低的高度，又可能会导致挤出机或者探针与热床相撞。所以Repetier从1.0版本（2017年1月14日）之后，你可以设置机器在Z轴归位前先将喷头抬升。原因很简单就是为了避免发生碰撞。听起来很简单，但是喷头会一直向机器顶部移动不停下来，于是又发生了碰撞。这时如果我们在机器顶部安装了Z-MAX限位开关就可以避免这一情况了。如果没有Z-MAX限位开关，要确保喷头在机器允许的高度范围内移动。好了，关键点来了，下一个问题。现在X、Y轴归位已经工作正常了，我们开始配置Z轴归位。这时我们要考虑到哪里可以进行Z轴归位。通常是X、Y轴归位的地方。的方向So we have to think about a position where we can home z. Normally this is done at xy home position. But the z probe is in most cases not where the nozzle is plus it must be over the bed to do a valid measurement. 
+
+So firmware will activate z probe adding offset and measure. SO if you are lucky it works since you home to min x and probe is on left side of nozzle. If not we HOME_ORDER_XYTZ which allows us to set a min. temperature for nozzle (only important if extruder is part of z probe) and more important we can set a probing coordinate. So we move first to that coordinate and then measure the height with offset. 
+
+这样我们就解决了使用Z-MIN归位时遇到的最后一个问题了。
 
 ## 固件配置
 ### Z-Probe（Z探针）
@@ -34,28 +38,19 @@
 
 - 自动方式是指：Z探针与挤出头一起移动，不需要认为干预调平过程。
 
-- 半自动方式是指：半自动的Z探针可能是数控机床上用来测量刀具高度的开关；因为它不与挤出头相连，用户需要 手动将探针放置在挤出头下方并按压它一次，以激活测量。测量后，探针会自动移至下一个位置并等候新的触发信号。 
-
-That way you can have a z-probe, where you do not need to consider on how to fix and activate it. 
-
-要想使用Z-Probe功能，需要先在configuration.h文件中进行配置。以下是配置文件中的相关参数:
+- 半自动方式是指：半自动的Z探针可能是数控机床上用来测量刀具高度的开关；因为它不与挤出头相连，用户需要手动将探针放置在挤出头下方并按压它一次，以激活测量。测量后，探针会自动移至下一个位置并等候新的触发信号。这样就能在使用Z探针的时候无需考虑如何固定和激活它。要想使用Z-Probe功能，需要先在configuration.h文件中进行配置。以下是配置文件中的相关参数:
 
 ```c++
 /* Z-Probing */
 #define FEATURE_Z_PROBE true
-/* After homing the z position is corrected to compensate
-for a bed coating. Since you can change coatings the value is stored in
-EEPROM if enabled, so you can switch between different coatings without needing
-to recalibrate z.
+/* 机器归位后，Z轴坐标是准确的，可用于平台覆盖物的厚度补偿。如果启用了平台覆盖物功能，由于存储在EEPROM中覆盖物的厚度值可以修改，你可以在不同的平台覆盖物类型之间切换，而无需重新校正Z轴高度。
 */
-#define Z_PROBE_Z_OFFSET 0 // offset to coating form real bed level
-/* How is z min measured
- 0 = trigger is height of real bed neglecting coating
- 1 = trigger is current coating
+#define Z_PROBE_Z_OFFSET 0 // 覆盖物表面到真正打印平台表面的厚度
+/* 如何探测Z轴最低点
+ 0 = 无视覆盖物，以真实平台的高度触发
+ 1 = 将平台与当前覆盖物的高度算在一起触发
  
- For mode 1 the current coating thickness is added to measured z probe distances.
- That way the real bed is always the reference height. For inductive sensors
- or z min endstops the coating has no effect on the result, so you should use mode 0.
+ 对于第1种方式，当前的覆盖物厚度会叠加到测量的Z探针测量结果中，这样真正的平台高度永远都是相对高度。如果Z探针使用的是金属感应类传感器或者Z-MIX限位开关，那么平台覆盖物并不会影响探测结果，所以你需要使用模式0。
 */
 #define Z_PROBE_Z_OFFSET_MODE 0
 #define Z_PROBE_PIN 63
@@ -64,14 +59,14 @@ to recalibrate z.
 #define Z_PROBE_X_OFFSET -11.2625
 #define Z_PROBE_Y_OFFSET -6.5
 
-// 等待触发信号，探针触碰平台和OK按钮是有效的触发信号。如果你有一个需要手动触发的探针需要配置下面的参数。
+// 如果你有一个需要手动触发的探针，想收到触发信号再开始探测，需要配置下面的参数。手动触碰探针或者在操作屏幕上按下OK按钮都是有效的触发信号。
 #define Z_PROBE_WAIT_BEFORE_TEST false
-/** 探针在Z轴方向移动的速度（mm/s） when probing */
+/** 探针在Z轴方向移动的速度（mm/s） */
 #define Z_PROBE_SPEED 5
 #define Z_PROBE_XY_SPEED 150
-#define Z_PROBE_SWITCHING_DISTANCE 1.5 // 探针在触发后可以安全关闭的高度Distance to safely switch off probe after it was activated
-#define Z_PROBE_REPETITIONS 5 // Repetitions for probing at one point. 
-/** The height is the difference between activated probe position and nozzle height. */
+#define Z_PROBE_SWITCHING_DISTANCE 1.5 // 探针在触发后可以关闭的安全高度
+#define Z_PROBE_REPETITIONS 5 // 对同一测量点的探测次数 
+/** 探针在开始探测时探测头部距离喷嘴头部的距离 */
 #define Z_PROBE_HEIGHT 39.91
 /** Gap between probe and bed resp. extruder and z sensor. Must be greater then initial z height inaccuracy!  */
 #define Z_PROBE_BED_DISTANCE 30.0
@@ -80,9 +75,7 @@ to recalibrate z.
 #define Z_PROBE_FINISHED_SCRIPT ""
 ```
 ```C++
-/* Auto leveling allows it to z-probe 3 points to compute the inclination and compensates the error for the print.
- This feature requires a working z-probe and you should have z-endstop at the top not at the bottom.
- The same 3 points are used for the G33 command.
+/* 自调平功能可以让Z探针通过测量平台上3个点的坐标来计算倾角，以补偿打印时的误差。此功能需要有一个工作正常的Z探针做支持，并且在机器顶部（不是底部）需要安装上Z-MAX限位开关。这三点的坐标会在G33命令中使用到。
 */
 #define FEATURE_AUTOLEVEL true
 #define Z_PROBE_X1 -69.28
@@ -92,20 +85,22 @@ to recalibrate z.
 #define Z_PROBE_X3 0
 #define Z_PROBE_Y3 80
 ```
-首先在固件中启用Z探针功能（FEATURE_Z_PROBE设为true）并定义对应的信号IO接口（Z_PROBE_PIN）。也可以和限位开关一样对接口设置上拉（Z_PROBE_PULLUP）和反转触发信号（Z_PROBE_ON_HIGH）。很多用户喜欢用Z-min限位开关作为Z探针的接口。这是可行的，但是你要注意这并不意味着必须要在配置文件前面定义Z-min的That is ok, but you should be aware
-that this does NOT mean you that you must define z min hardware endstop. It is only the z probe connected to the pin that could be used for this.
-Next you define the offset relative to the extruder origin position (the basis you use to define extruder offsets). For single extruder setup this is the position of the nozzle. For multi-extruder setups the origin, from where you defined the extruder offsets.
+首先在固件中启用Z探针功能（**FEATURE_Z_PROBE**设为true）并定义对应的信号IO接口**Z_PROBE_PIN**。也可以和限位开关一样对接口设置上拉**Z_PROBE_PULLUP**和反转触发信号**Z_PROBE_ON_HIGH**。很多用户喜欢将Z探针的接口插在主板上的Z-MIN限位开关接口上。这是可行的，但是请注意，这并不意味着必须要在配置文件中定义出Z-MIN硬件限位开关是哪个接口，只需定义出与Z探针相连的那个接口就可以了。
 
-If you need to manually move the z-probe, set Z_PROBE_WAIT_BEFORE_TEST to true. In that case, the extruder will hover over the measure points and wait for you to activate the switch once.
+接下来定义探针相对于挤出机原点位置的偏移量（这也是用来定义挤出机偏移量的基础）。对于单喷头来说可以直接将喷头的位置视为原点。对于多喷头来说，需要先定义每个喷头的偏移量。
 
-Z_PROBE_SPEED sets the probing speed in mm/s, while Z_PROBE_XY_SPEED is the speed in the xy plane. Z_PROBE_HEIGHT is the height difference between z-probe trigger and bed. This value is always added to the height, to compute the total height. Next comes Z_PROBE_BED_DISTANCE, which determines, at which height the probe will start measurements (probe height is added to this). You start with a guessed bed height, which you have set in the firmware. That height minus gap size must always be smaller then the real print area height. If you have some trick to enable/disable a z-probe, you can write the required g-code commands in Z_PROBE_START_SCRIPT and Z_PROBE_FINISHED_SCRIPT. Multiple commands are separated by a \n.
+如果需要手动移动Z探针，你需要将参数**Z_PROBE_WAIT_BEFORE_TEST**设置为true。在这种情况下，挤出机会悬停在测量点上，等待你再次激活开关。
 
-For more precise measurement you can repeat each point Z_PROBE_REPETITIONS times. After a probe is hit, the probe only lifts Z_PROBE_SWITCHING_DISTANCE mm. Depending on your probe type, this can be as less then 0.2 mm allowing very fast repetitions.
+参数**Z_PROBE_SPEED**设定了探针垂直方向移动的速度（单位mm/s），而**Z_PROBE_XY_SPEED**是探针在水平方向移动的速度。**Z_PROBE_HEIGHT**表示Z探针与打印平台的高度差。这个数值会叠加到打印高度上，以计算总高度。参数**Z_PROBE_BED_DISTANCE**定义了探针会在哪个高度开始探测（Z_PROBE_HEIGHT会叠加到这个高度上）。程序会从一个假想的平台高度开始测量，这个高度是你定义在固件中的高度。这个高度减去Z_PROBE_HEIGHT必会小于真正的打印高度。
+
+如果启动/停止Z探针需要特殊的命令，你可以将所需的g代码分别填在参数**Z_PROBE_START_SCRIPT**和**Z_PROBE_FINISHED_SCRIPT**内，如有多行命令以`\n`分隔。
+
+要想测量得更精确，可通过设置**Z_PROBE_REPETITIONS **参数来对一点多次探测。探针在触发后会抬升**Z_PROBE_SWITCHING_DISTANCE**毫米。根据探针类型，这个参数可以设置小于0.2毫米，以获得更快的重复探测速度。
 
 ## 校正Z探针
 一开始最容易犯错的就是Z探针的校正，所以你需要在校正任何参数前，先校准Z探针。
 
-首先检查触发信号是否正确。正常情况下，发送`M119`检查Z探针状态“L”（低电平，表示未触发状态）；然后人为触发探针，再次发送`M119`，Z探针状态变为“H”（高电平，表示触发状态）。如果实际正相反，你就需要调整固件中的**Z_PROBE_ON_HIGH**参数。参数调整后如果情况没有改变，你可能插错了IO口，或者没有将对应IO口设置成**上拉**。修正错误后继续下面的步骤。
+首先检查触发信号是否正确。正常情况下，发送`M119`检查Z探针状态应该是“L”（低电平，表示未触发状态）；然后手动触发探针，再次发送`M119`，Z探针状态应该变为“H”（高电平，表示触发状态）。如果实际正相反，你就需要调整固件中的**Z_PROBE_ON_HIGH**参数。参数调整后如果情况没有改变，你可能插错了IO口，或者没有将对应IO口设置成**上拉**。修正错误后继续下面的步骤。
 
 **Z_PROBE_HEIGHT**是最重要的参数，你需要在EEPROM中将它调整到正确的高度。这个参数定义了探针在触发那一刻，挤出头底部距离热床的高度。*大多数情况下这是个正数。但是如果Z探头使用的是压力传感器或是一个通过挤出头收到压力来触发的开关，则为0或一个小的负数*。测量这个距离的方法有很多，下面介绍一个最能准确测量高度的方法：
 
@@ -155,7 +150,7 @@ For more precise measurement you can repeat each point Z_PROBE_REPETITIONS times
 
     此类平台的旋转轴不在平台边缘而是在平台内部。这里假设一种平台中轴线没有弯曲，而中轴线的两侧呈对称性弯曲的情况。如图，P2和P3点连线构成一条对称轴，P1和P1<sub>m</sub>点关于直线P2P3轴对称。通过这种对称性，我们就可以消除从P1点产生的弯曲并形成一个平面。
 
-下面还需要定义一个修正方法。通过参数'BED_CORRECTION_METHOD'设置：
+下面还需要定义一个校正方法。通过参数'BED_CORRECTION_METHOD'设置：
 
 - BED_CORRECTION_METHOD 0
   使用旋转矩阵（rotation matrix）。挤出头在x/y轴平面运动的时候，z轴坐标会根据矩阵中相应位置的数据进行补偿。对于多挤出头，请确保它们的高度与打印平台的倾斜度相匹配，否则会发生剐蹭。
@@ -166,9 +161,10 @@ For more precise measurement you can repeat each point Z_PROBE_REPETITIONS times
 
 You need also to set the following parameter:
 
+```c++
 #define ENDSTOP_Z_BACK_MOVE 5
 #define Z_HOME_DIR 1
-
+```
 The first makes the z-axis go down a few mm after hitting the endstop. This is needed, because we assume a not even bed and correct z height during x-y-travel. It is important not to hit the z-endstop during these travels or your coordinate system gets wrong. The value must be larger then the maximum height difference of your bed. Delta printer user have a special problem at z max. There it is not possible to move the extruder without hitting an endstop. Printing at that height is also not possible for the same reason, so it is a good idea to set ENDSTOP_Z_BACK_MOVE to even higher values where some movements are possible like 50mm. Remember that a slight bed tilt also needs a side move! The second sets homing to z-max. This again is required, because the bed is not planar. If we had a z-min endstop, it should only get triggered where the bed has it’s lowest point. Of course this would mean, that for all other positions homing to z-min would crash the extruder head into the bed.
 
 Verify z-probe
