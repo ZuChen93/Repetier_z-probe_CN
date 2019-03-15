@@ -2,6 +2,7 @@
 >原文：https://www.repetier.com/documentation/repetier-firmware/z-probing/
 >
 >旧版固件的自动调平和畸变校正代码存在问题，请使用版本0.92.8（2016年3月1日）之后的固件。
+
 [TOC]
 
 ## 工作原理
@@ -29,7 +30,7 @@
 
 好了，到这里如果高度合适就没有问题了。为什么？假设热床再次测量Z轴更低的高度，又可能会导致挤出机或者探针与热床相撞。所以Repetier从1.0版本（2017年1月14日）之后，你可以设置机器在Z轴归位前先将喷头抬升。原因很简单就是为了避免发生碰撞。听起来很简单，但是喷头会一直向机器顶部移动不停下来，于是又发生了碰撞。这时如果我们在机器顶部安装了Z-MAX限位开关就可以避免这一情况了。如果没有Z-MAX限位开关，要确保喷头在机器允许的高度范围内移动。
 
-现在X、Y轴归位已经工作正常了，我们开始配置Z轴归位。这时我们要考虑执行Z轴归位的起始坐标。通常这个坐标与X、Y轴归位的起始坐标相同，但是在大多数情况下，Z型探头不是喷嘴所在的位置，而且它必须在平台有效区域内正上方的时候才能进行有效的测量。为此，固件在激活Z探针时会附带一个偏移量来探测。幸运的话机器在向X-MIN归位的时候可以正常进行，因为探针在喷嘴的左侧。如果不正常可以通过**HOME_ORDER_XYTZ **设定机器归位的顺序。也可以为喷嘴设定一个最低温度（近程挤出机需要设置此项）。更重要的是还可以设定一个探测的坐标。这样Z探针就会先移动到这个坐标再进行探测了。
+现在X、Y轴归位已经工作正常了，我们开始配置Z轴归位。这时我们要考虑执行Z轴归位的起始坐标。通常这个坐标与X、Y轴归位的起始坐标相同，但是在大多数情况下，Z型探头不是喷嘴所在的位置，而且它必须在平台有效区域内正上方的时候才能进行有效的测量。为此，固件在激活Z探针时会附带一个偏移量来探测。幸运的话机器在向X-MIN归位的时候可以正常进行，因为探针在喷嘴的左侧。如果不正常可以通过**HOME_ORDER_XYTZ**设定机器归位的顺序。也可以为喷嘴设定一个最低温度（近程挤出机需要设置此项）。更重要的是还可以设定一个探测的坐标。这样Z探针就会先移动到这个坐标再进行探测了。
 
 这样我们就解决了使用Z-MIN归位时遇到的最后一个问题了。
 
@@ -180,7 +181,7 @@
 
 ## 自动校正
 
-Now that everything is configured and working we can start adjusting the bed. Before using the leveling commands you need to at least home x and y axis. Deltas will home on G32, so they can skip this. Depending on the measurement method you have more or less testing points and time can be greatly reduced if we have to move less in z direction. When we have homed also in z axis the probe gets positioned at Z_PROBE_BED_DISTANCE + Z_PROBE_HEIGHT (if positive). You should select
+现在所有都配置好了正常工作，可以开始给平台调平了。在使用调平命令前，Now that everything is configured and working we can start adjusting the bed. Before using the leveling commands you need to at least home x and y axis. Deltas will home on G32, so they can skip this. Depending on the measurement method you have more or less testing points and time can be greatly reduced if we have to move less in z direction. When we have homed also in z axis the probe gets positioned at Z_PROBE_BED_DISTANCE + Z_PROBE_HEIGHT (if positive). You should select
 Z_PROBE_BED_DISTANCE such that it is higher then every expected tilt. If you have only homed x and y as you do not want to home to max z for the time it takes, you should know that the height you enabled the printer is 0 internally until you home. So positioning will be normally higher.
 
 One simple method is G29. It will measure 3 heights (at probing points) and use the average as printer height. This requires homing to z max before starting it.
