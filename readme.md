@@ -71,9 +71,9 @@
 #define Z_PROBE_REPETITIONS 5 // 对同一测量点的探测次数 
 /** 探针在开始探测时探测头部距离喷嘴头部的距离 */
 #define Z_PROBE_HEIGHT 39.91
-/** Gap between probe and bed resp. extruder and z sensor. Must be greater then initial z height inaccuracy!  */
+/** 探针在出发后向回移动的最大距离  */
 #define Z_PROBE_BED_DISTANCE 30.0
-/** These scripts are run before resp. after the z-probe is done. Add here code to activate/deactivate probe if needed. */
+/** 下面的参数是探针在探测前/探测后需要执行的命令 */
 #define Z_PROBE_START_SCRIPT ""
 #define Z_PROBE_FINISHED_SCRIPT ""
 ```
@@ -181,8 +181,7 @@
 
 ## 自动校正
 
-现在配置正常，可以开始给平台调平了。在使用调平命令前，至少需要将X轴和Y轴归位（Delta机型在执行`G32`命令后会将所有轴归位，可以跳过此步）。根据固件中所定义的不同测量方式，探测点和测量时间会有或多或少的不同，如果Depending on the measurement method you have more or less testing points and time can be greatly reduced if we have to move less in z direction. When we have homed also in z axis the probe gets positioned at Z_PROBE_BED_DISTANCE + Z_PROBE_HEIGHT (if positive). You should select
-Z_PROBE_BED_DISTANCE such that it is higher then every expected tilt. If you have only homed x and y as you do not want to home to max z for the time it takes, you should know that the height you enabled the printer is 0 internally until you home. So positioning will be normally higher.
+现在配置正常，可以开始给平台调平了。在使用调平命令前，至少需要将X轴和Y轴归位（Delta机型在执行`G32`命令后会将所有轴归位，可以跳过此步）。根据固件中所定义的不同测量方式，探测点会有或多或少的不同，如果Z轴方向的移动操作比较少的话，耗费的时间也可以大大减少。在机器归位后，探针也会停靠在Z_PROBE_BED_DISTANCE + Z_PROBE_HEIGHT 的高度（如果数值是正值的话）。你应该设置Z_PROBE_BED_DISTANCE，使其高于每个预料中的平台倾斜高度。如果你只归位了X轴和Y轴，不想花时间归位Z轴到最高点，你应该清楚在归位前机器会将挤出头的当前高度记为0。所以挤出头以后移动的位置通常会更高。
 
 最简单的方法是使用`G29`命令。机器会测量3个预先定义好的探测点的高度，并通过计算平均值得出打印机的打印高度。这个操作需要打印机先归位到Z-MAX上。
 
