@@ -167,7 +167,9 @@
 #define ENDSTOP_Z_BACK_MOVE 5
 #define Z_HOME_DIR 1
 ```
-上面的第一行参数表示The first makes the z-axis go down a few mm after hitting the endstop. This is needed, because we assume a not even bed and correct z height during x-y-travel. It is important not to hit the z-endstop during these travels or your coordinate system gets wrong. The value must be larger then the maximum height difference of your bed. Delta printer user have a special problem at z max. There it is not possible to move the extruder without hitting an endstop. Printing at that height is also not possible for the same reason, so it is a good idea to set ENDSTOP_Z_BACK_MOVE to even higher values where some movements are possible like 50mm. Remember that a slight bed tilt also needs a side move! The second sets homing to z-max. This again is required, because the bed is not planar. If we had a z-min endstop, it should only get triggered where the bed has it’s lowest point. Of course this would mean, that for all other positions homing to z-min would crash the extruder head into the bed.
+第一行参数表示限位开关在触发后，挤出头反方向移动几毫米。这个参数是有用的，因为我们假设挤出头在XY轴水平面运动的时候，平台是不平整的，而Z轴高度是可以保证准确的。在挤出头运动过程中或者机器的坐标系有问题的时候，一定要确保Z轴限位开关不会被触发。该值必须大于打印平台的最大高度差。对于Delta机型，用户可能会因为Z-MAX遇到一个特别的问题：如果不触发一个限位开关，挤出头就无法移动。因为同样的问题，在这个高度也无法进行打印操作，所以最好的办法是将**ENDSTOP_Z_BACK_MOVE**设置成更高的数值，有可能是50毫米。记住，打印头的移动需要根据平台的倾斜程度作出一致的补偿。
+
+第二行参数是把向Z-MAX移动的方向定义为归位方向。这个参数同样重要，因为打印平台是不平整的。如果机器使用的是Z-MIN限位开关，只能在喷头抵达整个平台的最低点时才能触发。这也就意味着，挤出头在向除了最低点的其他位置向Z-MIN归位时会一头扎进平台而发生损坏。
 
 ## 验证Z探针
 
@@ -175,30 +177,29 @@
 
 下面将打印机归位以测量挤出头和打印平台之间的距离。像`G30`或`G32`命令会在归位前会移动到一个更低的距离（**Z_PROBE_BED_DISTANCE** + **Z_PROBE_HEIGHT**），所以要确保打印机的所有动作都在打印平台之上执行。！
 
-现在应该没问题了，尝试做一次探测。将挤出头移动到一个你想探测的坐标并发送`G30`命令。挤出头会开始下降，直至Z探针被触发，然后返回开始移动的位置。在串口返回的日志中，你应该可以看到触发Z探针需要移动的距离。
-
-在首次测试中可能需要预留足够的移动空间并且手动触发探针，如果配置正确的话，返回的信号应该回与触发前的状态相反。如果是半自动Z探针，则需要先触发一下探针才能开始探测。
+现在应该没问题了，尝试做一次探测。将挤出头移动到一个你想探测的坐标并发送`G30`命令。挤出头会开始下降，直至Z探针被触发，然后返回开始移动的位置。在串口返回的日志中，你应该可以看到触发Z探针需要移动的距离。在首次测试中可能需要预留足够的移动空间并且手动触发探针，如果配置正确的话，返回的信号应该回与触发前的状态相反。如果是半自动Z探针，则需要先触发一下探针才能开始探测。
 
 ## 自动校正
 
-现在所有都配置好了正常工作，可以开始给平台调平了。在使用调平命令前，Now that everything is configured and working we can start adjusting the bed. Before using the leveling commands you need to at least home x and y axis. Deltas will home on G32, so they can skip this. Depending on the measurement method you have more or less testing points and time can be greatly reduced if we have to move less in z direction. When we have homed also in z axis the probe gets positioned at Z_PROBE_BED_DISTANCE + Z_PROBE_HEIGHT (if positive). You should select
+现在配置正常，可以开始给平台调平了。在使用调平命令前，至少需要将X轴和Y轴归位（Delta机型在执行`G32`命令后会将所有轴归位，可以跳过此步）。根据固件中所定义的不同测量方式，探测点和测量时间会有或多或少的不同，如果Depending on the measurement method you have more or less testing points and time can be greatly reduced if we have to move less in z direction. When we have homed also in z axis the probe gets positioned at Z_PROBE_BED_DISTANCE + Z_PROBE_HEIGHT (if positive). You should select
 Z_PROBE_BED_DISTANCE such that it is higher then every expected tilt. If you have only homed x and y as you do not want to home to max z for the time it takes, you should know that the height you enabled the printer is 0 internally until you home. So positioning will be normally higher.
 
-One simple method is G29. It will measure 3 heights (at probing points) and use the average as printer height. This requires homing to z max before starting it.
+最简单的方法是使用`G29`命令。机器会测量3个预先定义好的探测点的高度，并通过计算平均值得出打印机的打印高度。这个操作需要打印机先归位到Z-MAX上。
 
-The much better solution is to correct the possible rotation. We have already defined how we measure and how we correct, so there is no real difference any more. The command to start autoleveling is G32 with optional Sx parameter. What then happen is the following procedure:
+更好的解决方案是纠正潜在的平台转动。我们已经在固件中定义了测量和校正的方法，所以这和上面的情况也没有多大的区别。执行自动调平的命令是`G32`，可以根据需要追加`Sx`参数。随后机器会完成以下几步：
 
-Disabling distortion correction and autolevelig. Autoleveling rotation matrix gets reset.
-Delta printers will home and go down again to starting height.
-If you are higher then max. starting height the probe will lower to that height.
-Measuring and correcting rotation.
-If you have a max z endstop and parameter S was not 0, we update the printer height so later homing gives correct results. Make sure to do this only IF you had homed to z max before or you get completely wrong heights.
-Update current position.
-Store new matrix in EEPROm if parameter S is 2 or higher.
-Enable automatic correction.
-Enable distortion correction if it was enabled before.
-Nonlinear printers like deltas will home again to get right positioning.
-Older firmware versions (< 0.92.8) had S1 for measuring and update z length. This is now done always for z max homing as long as S is not 0.
+1. 禁用畸变校正和自动调平功能。自动调平记录的旋转矩阵信息会被重置
+2. Delta机型会归位并移动回起始高度
+3. 如果当前位置高于固件中定义的最大起始高度，挤出头会下降到这个高度
+4. 测量并校正平台旋转
+5. 如果机器安装了Z-MAX限位开关，并且G32后面的S参数不为0，程序会更新并记录下打印高度，这样随后的归位就可以显示准确的高度了。请确保机器已经归位到了Z轴最高点，或者机器显示的高度完全是错的时候再执行这个命令
+6. 更新当前位置
+7. 如果S参数后面的数字是2或者更大的数，程序会在EEPROM中记录下新的矩阵参数
+8. 启用自动调平
+9. 如果之前关闭过畸变校正则重新开启
+10. 针对Delta机型的打印机，机器会重新归位以获得准确的位置
+
+版本号小于0.92.8的老固件用的是参数`S1`来测量和更新Z轴高度。现在的固件只要参数S后面的数字不为零，机器就会对Z-MAX归位完成这一操作。
 
 ## Delta型打印机
 
